@@ -7,9 +7,9 @@
 
 This is a very minimal, command-line application useful for troubleshooting.
 
-On recent firmwares, the OSVR HDK reports, in the upper bits of the tracking report version number byte, status data that includes the video input status as it's seen received at the HMD. That is, it can report the "ground truth" about the video signal reaching the device after any operating system and device driver control panels perform their rotations and other mangling on it. The OSVR driver for the HDK decodes this information and reports it in an analog (serving as an `enum` of sorts) on the HDK device, at the semantic path `semantic/status/videoStatus`.
+On recent firmwares, the OSVR HDK reports, in the upper bits of the tracking report version number byte, status data that includes the video input status as it's seen received at the HMD. That is, it can report the "ground truth" about the video signal reaching the device after any operating system and device driver control panels perform their rotations and other mangling on it. The OSVR driver for the HDK decodes this information and reports it in an analog (serving as an `enum` of sorts) on the HDK device, at the semantic path `semantic/status/videoStatus`. This application opens that semantic path and registers a callback, so that it constantly receives this video status data.
 
-This application opens that semantic path and registers a callback, so that it constantly receives this video status data. As soon as it initially receives the first status data, and every time the status changes, it will print to the console a message with the video status "decoded" to English:
+To use the application, first make sure your HDK is plugged in and you **have an OSVR server running**. Then, start the `hdk-status` application. As soon as it initially receives the first status data, and every time the status changes, it will print to the console a message with the video status "decoded" to English:
 
 - **unknown/unavailable**
 	- usually means you have a very old HDK (or prototype) or very old firmware that doesn't report this data.
