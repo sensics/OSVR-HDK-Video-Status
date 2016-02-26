@@ -1,14 +1,15 @@
 /** @file
-    @brief Implementation
+    @brief A tiny application to access the HDK's video status, and display it
+   on startup and any time it changes.
 
-    @date 2014
+    @date 2016
 
     @author
     Sensics, Inc.
     <http://sensics.com/osvr>
 */
 
-// Copyright 2014 Sensics, Inc.
+// Copyright 2016 Sensics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,27 +32,66 @@
 
 // Standard includes
 #include <iostream>
+#include <chrono>
+#include <thread>
 
-void myAnalogCallback(void * /*userdata*/, const OSVR_TimeValue * /*timestamp*/,
-                      const OSVR_AnalogReport *report) {
-    std::cout << "Got report: channel is " << report->state << std::endl;
+/// The values that the /semantic/status/videoStatus path can take with their
+/// meaning
+enum class VideoStatus : int {
+    Unknown = 0,
+    NoInput = 1,
+    Portrait = 2,
+    Landscape = 3
+};
+
+static bool gotVidStatus = false;
+static VideoStatus vidStatus = VideoStatus::Unknown;
+
+void videoStatusCallback(void * /*userdata*/,
+                         const OSVR_TimeValue * /*timestamp*/,
+                         const OSVR_AnalogReport *report) {
+    /// The state here is actually an integer, serving as an enum, so we have to
+    /// (carefully) extract it.
+    VideoStatus newStatus =
+        static_cast<VideoStatus>(static_cast<int>(report->state));
+
+    if (!gotVidStatus || newStatus != vidStatus) {
+        /// If we haven't shown the state yet, or if the state has changed, we
+        /// should display it.
+        gotVidStatus = true;
+        vidStatus = newStatus;
+
+        std::cout << "\n\nOSVR HDK reports current video status: ";
+        switch (vidStatus) {
+        case VideoStatus::Unknown:
+            std::cout << "unknown/unavailable (is your firmware up to date?)";
+            break;
+        case VideoStatus::NoInput:
+            std::cout << "receiving no video input";
+            break;
+        case VideoStatus::Portrait:
+            std::cout << "receiving portrait video input";
+            break;
+        case VideoStatus::Landscape:
+            std::cout << "receiving landscape video input";
+            break;
+        }
+        std::cout << std::endl;
+    }
 }
 
 int main() {
-    osvr::clientkit::ClientContext context(
-        "com.osvr.exampleclients.AnalogCallback");
+    osvr::clientkit::ClientContext context("com.sensics.osvrhdkvideostatus");
 
-    // This is just one of the paths: specifically, the Hydra's left
-    // controller's analog trigger. More are in the docs and/or listed on
-    // startup
-    osvr::clientkit::Interface analogTrigger =
-        context.getInterface("/controller/left/trigger");
+    osvr::clientkit::Interface hdkVideoStatus = context.getInterface(
+        "/com_osvr_Multiserver/OSVRHackerDevKit0/semantic/status/videoStatus");
 
-    analogTrigger.registerCallback(&myAnalogCallback, NULL);
+    hdkVideoStatus.registerCallback(&videoStatusCallback, NULL);
 
-    // Pretend that this is your application's mainloop.
-    for (int i = 0; i < 1000000; ++i) {
+    /// Run forever - the user can close without harm.
+    while (true) {
         context.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     std::cout << "Library shut down, exiting." << std::endl;
